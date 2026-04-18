@@ -586,17 +586,17 @@ export default function DashboardPage() {
   const getPlaceholder = () => {
     switch (currentMode) {
       case 'chat':
-        return 'Ask anything about software development...';
+        return 'Kuch bhi poocho... (English, Hindi, or Hinglish)';
       case 'debate':
-        return 'Enter a tech topic to debate...';
+        return "Enter debate topic (e.g., 'REST vs GraphQL' ya 'Microservices sahi hai kya?')";
       case 'roast':
-        return 'Paste your code here to get roasted...';
+        return 'Apna code yahan paste karo...';
       case 'explain':
-        return 'Paste code or type a concept to explain...';
+        return 'Code ya concept explain karwao...';
       case 'research':
-        return 'Enter a tech topic to research...';
+        return 'Koi bhi tech topic research karo...';
       case 'optimize':
-        return `Paste your ${optimizeLanguage} code to optimize...`;
+        return 'Code paste karo optimize karne ke liye...';
       default:
         return 'Type your message...';
     }
@@ -634,7 +634,7 @@ export default function DashboardPage() {
               type="text"
               value={debateTopic}
               onChange={(e) => setDebateTopic(e.target.value)}
-              placeholder="Enter debate topic (e.g., 'Should startups use microservices?')"
+              placeholder="Debate topic daalo (e.g., 'REST vs GraphQL' ya 'Microservices sahi hai kya?')"
               className="w-full px-4 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-strong)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[0_0_0_3px_rgba(0,212,255,0.1)] transition-all"
             />
             <textarea
