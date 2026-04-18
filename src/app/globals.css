@@ -1,27 +1,205 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f8;
+  --bg-card: #ffffff;
+  --bg-elevated: #f0f0f2;
+  --accent-primary: #0066ff;
+  --accent-secondary: #00d4aa;
+  --accent-danger: #ff3b30;
+  --accent-warning: #ff9500;
+  --text-primary: #0a0a0b;
+  --text-secondary: #6e6e80;
+  --text-muted: #a0a0b0;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.15);
+  --sidebar-width: 260px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #111113;
+  --bg-card: #141416;
+  --bg-elevated: #1c1c1f;
+  --accent-primary: #00d4ff;
+  --accent-secondary: #00ff88;
+  --accent-danger: #ff4444;
+  --accent-warning: #ffaa00;
+  --text-primary: #efefef;
+  --text-secondary: #888899;
+  --text-muted: #555566;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  .font-display {
+    font-family: 'Syne', sans-serif;
+  }
+
+  .font-sans {
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .bg-primary {
+    background-color: var(--bg-primary);
+  }
+
+  .bg-secondary {
+    background-color: var(--bg-secondary);
+  }
+
+  .bg-card {
+    background-color: var(--bg-card);
+  }
+
+  .bg-elevated {
+    background-color: var(--bg-elevated);
+  }
+
+  .text-primary {
+    color: var(--text-primary);
+  }
+
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+
+  .border-subtle {
+    border-color: var(--border);
+  }
+
+  .border-strong {
+    border-color: var(--border-strong);
+  }
+
+  .accent-primary {
+    color: var(--accent-primary);
+  }
+
+  .accent-secondary {
+    color: var(--accent-secondary);
+  }
+
+  .accent-danger {
+    color: var(--accent-danger);
+  }
+
+  .accent-warning {
+    color: var(--accent-warning);
+  }
+
+  .bg-accent-primary {
+    background-color: var(--accent-primary);
+  }
+
+  .bg-accent-secondary {
+    background-color: var(--accent-secondary);
+  }
+
+  .bg-accent-danger {
+    background-color: var(--accent-danger);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  .code-block {
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--accent-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+  .message-user {
+    background: var(--accent-primary);
+    color: white;
+    border-radius: 16px 16px 4px 16px;
+  }
+
+  .message-ai {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 16px 4px;
+  }
+
+  .input-focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+  }
+}
+
+/* Selection color */
+::selection {
+  background: var(--accent-primary);
+  color: white;
+}
+
+/* Focus visible outline */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
 }
