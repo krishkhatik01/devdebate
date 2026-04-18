@@ -5,10 +5,30 @@ import TypewriterText from "@/components/arena/TypewriterText";
 import ScoreBoard from "@/components/arena/ScoreBoard";
 
 const MODELS = [
-  { id: "llama-3.3-70b-versatile", name: "LLaMA 3.3 70B", avatar: "🦙", color: "cyan" },
-  { id: "llama-3.1-8b-instant", name: "LLaMA 3.1 8B", avatar: "⚡", color: "yellow" },
-  { id: "mixtral-saba-24b", name: "Mixtral Saba", avatar: "🌀", color: "purple" },
-  { id: "gemma2-9b-it", name: "Gemma 2 9B", avatar: "💎", color: "pink" },
+  {
+    id: "llama-3.3-70b-versatile",
+    name: "LLaMA 3.3 70B",
+    avatar: "🦙",
+    color: "cyan"
+  },
+  {
+    id: "llama-3.1-8b-instant",
+    name: "LLaMA 3.1 8B",
+    avatar: "⚡",
+    color: "yellow"
+  },
+  {
+    id: "gemma2-9b-it",
+    name: "Gemma 2 9B",
+    avatar: "💎",
+    color: "pink"
+  },
+  {
+    id: "deepseek-r1-distill-llama-70b",
+    name: "DeepSeek R1",
+    avatar: "🔍",
+    color: "blue"
+  },
 ];
 
 const EXAMPLE_TOPICS = [
@@ -39,7 +59,7 @@ export default function ArenaPage() {
   const [topic, setTopic] = useState("");
   const [context, setContext] = useState("");
   const [forModel, setForModel] = useState(MODELS[0]);
-  const [againstModel, setAgainstModel] = useState(MODELS[2]);
+  const [againstModel, setAgainstModel] = useState(MODELS[3]);
   const [totalRounds, setTotalRounds] = useState(3);
 
   // Battle state
