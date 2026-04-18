@@ -9,25 +9,31 @@ const MODELS = [
     id: "llama-3.3-70b-versatile",
     name: "LLaMA 3.3 70B",
     avatar: "🦙",
-    color: "cyan"
+    description: "Most capable"
   },
   {
     id: "llama-3.1-8b-instant",
     name: "LLaMA 3.1 8B",
     avatar: "⚡",
-    color: "yellow"
+    description: "Fastest"
   },
   {
-    id: "gemma2-9b-it",
-    name: "Gemma 2 9B",
-    avatar: "💎",
-    color: "pink"
+    id: "llama-4-scout-17b-16e-instruct",
+    name: "LLaMA 4 Scout",
+    avatar: "🔭",
+    description: "Latest LLaMA 4"
   },
   {
-    id: "deepseek-r1-distill-llama-70b",
-    name: "DeepSeek R1",
-    avatar: "🔍",
-    color: "blue"
+    id: "qwen-qwq-32b",
+    name: "Qwen QwQ 32B",
+    avatar: "🧠",
+    description: "Strong reasoning"
+  },
+  {
+    id: "openai/gpt-oss-20b",
+    name: "GPT OSS 20B",
+    avatar: "🤖",
+    description: "OpenAI open model"
   },
 ];
 
