@@ -1,41 +1,26 @@
 "use client";
-import { useState } from "react";
-import { Swords, RotateCcw, Share2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Swords, RotateCcw, Share2, Loader2 } from "lucide-react";
 import TypewriterText from "@/components/arena/TypewriterText";
 import ScoreBoard from "@/components/arena/ScoreBoard";
 
-const MODELS = [
-  {
-    id: "llama-3.3-70b-versatile",
-    name: "LLaMA 3.3 70B",
-    avatar: "🦙",
-    description: "Most capable"
-  },
-  {
-    id: "llama-3.1-8b-instant",
-    name: "LLaMA 3.1 8B",
-    avatar: "⚡",
-    description: "Fastest"
-  },
-  {
-    id: "llama-4-scout-17b-16e-instruct",
-    name: "LLaMA 4 Scout",
-    avatar: "🔭",
-    description: "Latest LLaMA 4"
-  },
-  {
-    id: "qwen-qwq-32b",
-    name: "Qwen QwQ 32B",
-    avatar: "🧠",
-    description: "Strong reasoning"
-  },
-  {
-    id: "openai/gpt-oss-20b",
-    name: "GPT OSS 20B",
-    avatar: "🤖",
-    description: "OpenAI open model"
-  },
-];
+type Model = {
+  id: string;
+  name: string;
+  avatar: string;
+};
+
+// Assign avatar emoji based on model name
+const getAvatar = (modelId: string): string => {
+  const lower = modelId.toLowerCase();
+  if (lower.includes("llama")) return "🦙";
+  if (lower.includes("qwen")) return "🧠";
+  if (lower.includes("gpt")) return "🤖";
+  if (lower.includes("gemma")) return "💎";
+  if (lower.includes("mistral") || lower.includes("mixtral")) return "🌀";
+  if (lower.includes("deepseek")) return "🔍";
+  return "⚡";
+};
 
 const EXAMPLE_TOPICS = [
   "React vs Vue.js",
@@ -61,11 +46,15 @@ type Round = {
 };
 
 export default function ArenaPage() {
+  // Models state
+  const [models, setModels] = useState<Model[]>([]);
+  const [loadingModels, setLoadingModels] = useState(true);
+
   // Setup state
   const [topic, setTopic] = useState("");
   const [context, setContext] = useState("");
-  const [forModel, setForModel] = useState(MODELS[0]);
-  const [againstModel, setAgainstModel] = useState(MODELS[3]);
+  const [forModel, setForModel] = useState<Model | null>(null);
+  const [againstModel, setAgainstModel] = useState<Model | null>(null);
   const [totalRounds, setTotalRounds] = useState(3);
 
   // Battle state
@@ -83,9 +72,40 @@ export default function ArenaPage() {
   const [currentRoundData, setCurrentRoundData] = useState<Round | null>(null);
   const [error, setError] = useState("");
 
+  // Fetch models on mount
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const res = await fetch("/api/models");
+        const data = await res.json();
+        if (data.models && data.models.length >= 2) {
+          const modelsWithAvatars = data.models.map((m: { id: string; name: string }) => ({
+            id: m.id,
+            name: m.id,
+            avatar: getAvatar(m.id),
+          }));
+          setModels(modelsWithAvatars);
+          setForModel(modelsWithAvatars[0]);
+          setAgainstModel(modelsWithAvatars[1]);
+        } else {
+          setError("Failed to load models");
+        }
+      } catch {
+        setError("Failed to fetch models");
+      } finally {
+        setLoadingModels(false);
+      }
+    };
+    fetchModels();
+  }, []);
+
   const startCountdown = () => {
     if (!topic.trim()) {
       setError("Please enter a debate topic");
+      return;
+    }
+    if (!forModel || !againstModel) {
+      setError("Models not loaded yet");
       return;
     }
     if (forModel.id === againstModel.id) {
@@ -135,8 +155,8 @@ export default function ArenaPage() {
           body: JSON.stringify({
             topic,
             context,
-            forModel: forModel.id,
-            againstModel: againstModel.id,
+            forModel: forModel!.id,
+            againstModel: againstModel!.id,
             round,
             totalRounds,
             roundType,
@@ -204,6 +224,7 @@ export default function ArenaPage() {
   };
 
   const shareResult = () => {
+    if (!forModel || !againstModel) return;
     const winner = getWinner();
     const text = `🤖 AI Battle Result on DevDebate!\nTopic: ${topic}\n${forModel.avatar} ${forModel.name}: ${totalScores.for}pts\n${againstModel.avatar} ${againstModel.name}: ${totalScores.against}pts\nWinner: ${winner ? winner.name : "Draw!"}\nWatch AI models debate: devdebate.vercel.app/arena`;
     navigator.clipboard.writeText(text);
@@ -287,24 +308,31 @@ export default function ArenaPage() {
               FOR Model
             </label>
             <div className="space-y-2">
-              {MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setForModel(m)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 
-                    rounded-xl border transition-all text-left
-                    ${forModel.id === m.id
-                      ? "border-green-500 bg-green-500/10 text-[var(--text-primary)]"
-                      : "border-[var(--border)] text-[var(--text-secondary)] hover:border-green-500/50"
-                    }`}
-                >
-                  <span className="text-xl">{m.avatar}</span>
-                  <span className="text-sm font-medium">{m.name}</span>
-                  {forModel.id === m.id && (
-                    <span className="ml-auto text-green-400 text-xs">✓</span>
-                  )}
-                </button>
-              ))}
+              {loadingModels ? (
+                <div className="flex items-center justify-center py-4 text-[var(--text-secondary)]">
+                  <Loader2 size={20} className="animate-spin mr-2" />
+                  Loading models...
+                </div>
+              ) : (
+                models.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setForModel(m)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 
+                      rounded-xl border transition-all text-left
+                      ${forModel?.id === m.id
+                        ? "border-green-500 bg-green-500/10 text-[var(--text-primary)]"
+                        : "border-[var(--border)] text-[var(--text-secondary)] hover:border-green-500/50"
+                      }`}
+                  >
+                    <span className="text-xl">{m.avatar}</span>
+                    <span className="text-sm font-medium">{m.name}</span>
+                    {forModel?.id === m.id && (
+                      <span className="ml-auto text-green-400 text-xs">✓</span>
+                    )}
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
@@ -313,24 +341,31 @@ export default function ArenaPage() {
               AGAINST Model
             </label>
             <div className="space-y-2">
-              {MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setAgainstModel(m)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 
-                    rounded-xl border transition-all text-left
-                    ${againstModel.id === m.id
-                      ? "border-red-500 bg-red-500/10 text-[var(--text-primary)]"
-                      : "border-[var(--border)] text-[var(--text-secondary)] hover:border-red-500/50"
-                    }`}
-                >
-                  <span className="text-xl">{m.avatar}</span>
-                  <span className="text-sm font-medium">{m.name}</span>
-                  {againstModel.id === m.id && (
-                    <span className="ml-auto text-red-400 text-xs">✓</span>
-                  )}
-                </button>
-              ))}
+              {loadingModels ? (
+                <div className="flex items-center justify-center py-4 text-[var(--text-secondary)]">
+                  <Loader2 size={20} className="animate-spin mr-2" />
+                  Loading models...
+                </div>
+              ) : (
+                models.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setAgainstModel(m)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 
+                      rounded-xl border transition-all text-left
+                      ${againstModel?.id === m.id
+                        ? "border-red-500 bg-red-500/10 text-[var(--text-primary)]"
+                        : "border-[var(--border)] text-[var(--text-secondary)] hover:border-red-500/50"
+                      }`}
+                  >
+                    <span className="text-xl">{m.avatar}</span>
+                    <span className="text-sm font-medium">{m.name}</span>
+                    {againstModel?.id === m.id && (
+                      <span className="ml-auto text-red-400 text-xs">✓</span>
+                    )}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -378,16 +413,16 @@ export default function ArenaPage() {
       <div className="flex flex-col items-center justify-center h-full gap-6">
         <div className="flex items-center gap-8">
           <div className="text-center">
-            <div className="text-4xl mb-2">{forModel.avatar}</div>
-            <div className="text-sm text-green-400">{forModel.name}</div>
+            <div className="text-4xl mb-2">{forModel!.avatar}</div>
+            <div className="text-sm text-green-400">{forModel!.name}</div>
           </div>
           <div className="text-6xl font-bold text-[var(--accent-primary)] 
             animate-pulse font-display">
             {countdown}
           </div>
           <div className="text-center">
-            <div className="text-4xl mb-2">{againstModel.avatar}</div>
-            <div className="text-sm text-red-400">{againstModel.name}</div>
+            <div className="text-4xl mb-2">{againstModel!.avatar}</div>
+            <div className="text-sm text-red-400">{againstModel!.name}</div>
           </div>
         </div>
         <p className="text-[var(--text-secondary)] text-lg">Get ready...</p>
@@ -413,11 +448,11 @@ export default function ArenaPage() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-green-400 font-bold">
-              {forModel.avatar} {totalScores.for}
+              {forModel!.avatar} {totalScores.for}
             </span>
             <span className="text-[var(--text-muted)]">vs</span>
             <span className="text-red-400 font-bold">
-              {totalScores.against} {againstModel.avatar}
+              {totalScores.against} {againstModel!.avatar}
             </span>
           </div>
         </div>
@@ -428,10 +463,10 @@ export default function ArenaPage() {
           <div className="flex-1 p-5 border-r border-[var(--border)] overflow-y-auto
             bg-green-500/5">
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">{forModel.avatar}</span>
+              <span className="text-2xl">{forModel!.avatar}</span>
               <div>
                 <div className="font-medium text-[var(--text-primary)] text-sm">
-                  {forModel.name}
+                  {forModel!.name}
                 </div>
                 <div className="text-xs text-green-400 font-bold">FOR</div>
               </div>
@@ -461,10 +496,10 @@ export default function ArenaPage() {
           {/* AGAINST Panel */}
           <div className="flex-1 p-5 overflow-y-auto bg-red-500/5">
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">{againstModel.avatar}</span>
+              <span className="text-2xl">{againstModel!.avatar}</span>
               <div>
                 <div className="font-medium text-[var(--text-primary)] text-sm">
-                  {againstModel.name}
+                  {againstModel!.name}
                 </div>
                 <div className="text-xs text-red-400 font-bold">AGAINST</div>
               </div>
@@ -498,18 +533,18 @@ export default function ArenaPage() {
             bg-[var(--bg-elevated)]">
             <div className="flex items-center justify-between">
               <div className="text-xs text-[var(--text-secondary)]">
-                {forModel.name}: {currentRoundData.forFeedback}
+                {forModel!.name}: {currentRoundData.forFeedback}
               </div>
               <div className="px-4 py-1 rounded-full text-xs font-bold
                 bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]">
                 Round {currentRound} Winner: {
-                  currentRoundData.roundWinner === 'for' ? forModel.name :
-                    currentRoundData.roundWinner === 'against' ? againstModel.name :
+                  currentRoundData.roundWinner === 'for' ? forModel!.name :
+                    currentRoundData.roundWinner === 'against' ? againstModel!.name :
                       'Draw'
                 }
               </div>
               <div className="text-xs text-[var(--text-secondary)]">
-                {againstModel.name}: {currentRoundData.againstFeedback}
+                {againstModel!.name}: {currentRoundData.againstFeedback}
               </div>
             </div>
           </div>
@@ -535,7 +570,7 @@ export default function ArenaPage() {
               {totalScores.for}
             </div>
             <div className="text-sm text-[var(--text-secondary)]">
-              {forModel.avatar} {forModel.name}
+              {forModel!.avatar} {forModel!.name}
             </div>
           </div>
           <div className="text-[var(--text-muted)]">vs</div>
@@ -544,7 +579,7 @@ export default function ArenaPage() {
               {totalScores.against}
             </div>
             <div className="text-sm text-[var(--text-secondary)]">
-              {againstModel.avatar} {againstModel.name}
+              {againstModel!.avatar} {againstModel!.name}
             </div>
           </div>
         </div>
@@ -568,15 +603,15 @@ export default function ArenaPage() {
               </span>
               <span className="text-xs font-bold text-[var(--accent-primary)]">
                 Winner: {
-                  r.roundWinner === 'for' ? forModel.name :
-                    r.roundWinner === 'against' ? againstModel.name : 'Draw'
+                  r.roundWinner === 'for' ? forModel!.name :
+                    r.roundWinner === 'against' ? againstModel!.name : 'Draw'
                 }
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="text-xs text-green-400 mb-1">
-                  {forModel.name}: {r.forScore}/10
+                  {forModel!.name}: {r.forScore}/10
                 </div>
                 <p className="text-xs text-[var(--text-secondary)]">
                   {r.forFeedback}
@@ -584,7 +619,7 @@ export default function ArenaPage() {
               </div>
               <div>
                 <div className="text-xs text-red-400 mb-1">
-                  {againstModel.name}: {r.againstScore}/10
+                  {againstModel!.name}: {r.againstScore}/10
                 </div>
                 <p className="text-xs text-[var(--text-secondary)]">
                   {r.againstFeedback}
