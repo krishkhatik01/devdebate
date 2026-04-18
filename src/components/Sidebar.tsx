@@ -18,7 +18,7 @@ import {
   ChevronRight,
   Menu,
   Terminal,
-  Users,
+  Trophy,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -28,7 +28,7 @@ const iconMap: Record<string, React.ElementType> = {
   Brain,
   Search,
   Zap,
-  Users,
+  Trophy,
 };
 
 interface SidebarProps {
@@ -112,7 +112,7 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
         {/* Arena */}
         <div className={`px-4 mt-6 mb-2 ${collapsed ? 'text-center' : ''}`}>
           {!collapsed && (
-            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.1em]">Multiplayer</p>
+            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.1em]">Arena</p>
           )}
         </div>
         <div className="px-2">
@@ -123,11 +123,11 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]/50 hover:text-[var(--text-primary)]'
               } ${collapsed ? 'justify-center' : ''}`}
           >
-            <Users size={16} className={pathname === '/arena' || pathname.startsWith('/arena/') ? 'text-[var(--accent-primary)]' : ''} />
+            <Trophy size={16} className={pathname === '/arena' || pathname.startsWith('/arena/') ? 'text-[var(--accent-primary)]' : ''} />
             {!collapsed && (
               <>
-                <span className="text-sm font-medium">Live Arena</span>
-                <span className="ml-auto text-[10px] bg-[var(--accent-danger)] text-white px-2 py-0.5 rounded-full animate-pulse">
+                <span className="text-sm font-medium">AI Battle Arena</span>
+                <span className="ml-auto text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full animate-pulse">
                   NEW
                 </span>
               </>
