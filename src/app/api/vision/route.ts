@@ -1,6 +1,10 @@
 import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
+// Debug logging at the very top
+console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+console.log("GEMINI_API_KEY value:", process.env.GEMINI_API_KEY?.substring(0, 15));
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 // Auto-detect working model
@@ -21,8 +25,9 @@ async function getWorkingModel(): Promise<GenerativeModel> {
       await model.generateContent("test");
       console.log(`✅ Working Gemini model found: ${modelName}`);
       return model;
-    } catch {
-      console.log(`❌ Model ${modelName} failed, trying next...`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.log(`❌ Model ${modelName} failed:`, errorMessage);
       continue;
     }
   }
