@@ -10,8 +10,8 @@ import ChatMessage from '@/components/ChatMessage';
 import DebateView from '@/components/DebateView';
 import CodeRoastView from '@/components/CodeRoastView';
 import ArenaMode from '@/components/modes/ArenaMode';
-import VisionMode from '@/components/modes/VisionMode';
 import { useToast } from '@/components/Toast';
+import SmartChatInput from '@/components/SmartChatInput';
 import { Loader2, MessageSquare, Swords, Flame, Brain, Search, Zap, ArrowRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -66,13 +66,13 @@ const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; des
   vision: {
     icon: Search,
     title: 'Vision Mode',
-    description: 'Upload or capture images for AI analysis. Perfect for code screenshots, diagrams, and error messages.',
+    description: 'Upload or capture images for AI analysis.',
   },
 };
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { currentMode } = useDashboard();
+  const { currentMode, setCurrentMode } = useDashboard();
   const { showToast, ToastContainer } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -442,9 +442,6 @@ export default function DashboardPage() {
       case 'arena':
         // Arena mode handles its own submission
         break;
-      case 'vision':
-        // Vision mode handles its own submission
-        break;
     }
   };
 
@@ -588,8 +585,6 @@ export default function DashboardPage() {
         return null;
       case 'arena':
         return <ArenaMode />;
-      case 'vision':
-        return <VisionMode />;
       default:
         if (messages.length === 0 && !isLoading) return renderEmptyState();
         return (
@@ -670,6 +665,15 @@ export default function DashboardPage() {
               )}
             </button>
           </div>
+        ) : currentMode === 'chat' ? (
+          <SmartChatInput
+            input={input}
+            setInput={setInput}
+            onSend={handleChatSubmit}
+            isLoading={isLoading}
+            currentMode={currentMode}
+            onModeChange={setCurrentMode}
+          />
         ) : (
           <div className="max-w-4xl mx-auto relative">
             <textarea

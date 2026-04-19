@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { MODES, ModeType } from '@/lib/types';
+
+// Filter out vision mode from sidebar (accessed via Smart Chat attachment)
+const SIDEBAR_MODES = MODES.filter(m => m.id !== 'vision');
 import ThemeToggle from './ThemeToggle';
 import {
   MessageSquare,
@@ -85,7 +88,7 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
           )}
         </div>
         <nav className="space-y-0.5 px-2">
-          {MODES.map((mode) => {
+          {SIDEBAR_MODES.map((mode) => {
             const Icon = iconMap[mode.icon];
             const isActive = currentMode === mode.id;
             return (
