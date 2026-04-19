@@ -91,7 +91,7 @@ export default function SmartChatInput({
 
   const handleSend = () => {
     if (!input.trim() && !attachedImage && !attachedFile) return;
-    
+
     // If image attached, extract base64 and mimeType from data URL
     if (attachedImage) {
       const dataUrl = attachedImage.preview;
@@ -106,7 +106,7 @@ export default function SmartChatInput({
     } else {
       onSend();
     }
-    
+
     // Clear attachments after send
     setAttachedImage(null);
     setAttachedFile(null);

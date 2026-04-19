@@ -19,6 +19,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Log for debugging
+    console.log("XAI_API_KEY present:", !!xaiApiKey);
+    console.log("base64Image length:", base64Image?.length);
+    console.log("mimeType:", mimeType);
+
     const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -29,35 +34,35 @@ export async function POST(req: NextRequest) {
         model: "grok-2-vision-1212",
         messages: [
           {
-            role: "system",
-            content: "You are a helpful assistant. When a user uploads an image, analyze it and describe what you visually observe — objects, text, colors, patterns, and any notable details. Always attempt to analyze the image. Never refuse to describe an image.",
-          },
-          {
             role: "user",
             content: [
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:${mimeType};base64,${base64Image}`,
+                  url: `data:image/jpeg;base64,${base64Image}`,
                 },
               },
               {
                 type: "text",
-                text: `${prompt}\n\nAuto detect language from the question and reply in same language. If image contains code, analyze it carefully. If image contains an error, explain it and provide fix. Be helpful and detailed.`,
+                text: prompt || "Analyze this image",
               },
             ],
           },
         ],
-        temperature: 0.7,
         max_tokens: 1024,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-      console.error("xAI API error:", errorData);
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { error: "Unknown error", status: response.status };
+      }
+      console.error("xAI API error:", JSON.stringify(errorData, null, 2));
       return NextResponse.json(
-        { error: errorData.error?.message || "Vision analysis failed" },
+        { error: errorData.error?.message || errorData.message || "Vision analysis failed" },
         { status: response.status }
       );
     }
