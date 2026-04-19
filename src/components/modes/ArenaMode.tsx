@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Swords, RotateCcw, Share2, Loader2 } from "lucide-react";
 import TypewriterText from "@/components/arena/TypewriterText";
 import ScoreBoard from "@/components/arena/ScoreBoard";
+import { useToast } from "@/components/ui/Toast";
 
 type Model = {
   id: string;
@@ -45,7 +46,9 @@ type Round = {
   roundWinner: string;
 };
 
-export default function ArenaPage() {
+export default function ArenaMode() {
+  const { showToast, ToastContainer } = useToast();
+
   // Models state
   const [models, setModels] = useState<Model[]>([]);
   const [loadingModels, setLoadingModels] = useState(true);
@@ -228,7 +231,7 @@ export default function ArenaPage() {
     const winner = getWinner();
     const text = `🤖 AI Battle Result on DevDebate!\nTopic: ${topic}\n${forModel.avatar} ${forModel.name}: ${totalScores.for}pts\n${againstModel.avatar} ${againstModel.name}: ${totalScores.against}pts\nWinner: ${winner ? winner.name : "Draw!"}\nWatch AI models debate: devdebate.vercel.app/arena`;
     navigator.clipboard.writeText(text);
-    alert("Result copied to clipboard!");
+    showToast("Result copied to clipboard!", "success");
   };
 
   // SETUP SCREEN
@@ -664,6 +667,7 @@ export default function ArenaPage() {
           <Share2 size={16} /> Share
         </button>
       </div>
+      <ToastContainer />
     </div>
   );
 }

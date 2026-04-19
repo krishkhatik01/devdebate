@@ -8,6 +8,8 @@ import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase
 import { Session, ModeType, MODES } from '@/lib/types';
 import HistoryItem from '@/components/HistoryItem';
 import { Search, ArrowLeft, Filter } from 'lucide-react';
+import { useModal } from '@/hooks/useModal';
+import Modal from '@/components/ui/Modal';
 
 export default function HistoryPage() {
   const { user } = useAuth();
@@ -17,6 +19,7 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMode, setSelectedMode] = useState<ModeType | 'all'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const { modal, showConfirm, closeModal } = useModal();
 
   useEffect(() => {
     if (!user) return;
@@ -65,13 +68,18 @@ export default function HistoryPage() {
 
   const handleDelete = async (sessionId: string) => {
     if (!user) return;
-    if (!confirm('Are you sure you want to delete this session?')) return;
-
-    try {
-      await deleteDoc(doc(db, 'sessions', user.uid, 'chats', sessionId));
-    } catch (error) {
-      console.error('Error deleting session:', error);
-    }
+    showConfirm(
+      'Delete Session',
+      'Are you sure you want to delete this session? This cannot be undone.',
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'sessions', user.uid, 'chats', sessionId));
+        } catch (error) {
+          console.error('Error deleting session:', error);
+        }
+      },
+      'danger'
+    );
   };
 
   const handleSessionClick = () => {
@@ -201,6 +209,16 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        confirmText={modal.confirmText}
+        cancelText={modal.cancelText}
+      />
     </div>
   );
 }

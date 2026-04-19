@@ -12,7 +12,7 @@ export interface Message {
   timestamp: Date;
 }
 
-export type ModeType = 'chat' | 'debate' | 'roast' | 'explain' | 'research' | 'optimize';
+export type ModeType = 'chat' | 'debate' | 'roast' | 'explain' | 'research' | 'optimize' | 'arena' | 'vision';
 
 export interface Session {
   id: string;
@@ -96,6 +96,20 @@ export const MODES: ModeConfig[] = [
     label: 'Optimize Code',
     icon: 'Zap',
     description: 'Performance optimization analysis',
+    color: 'cyan',
+  },
+  {
+    id: 'arena',
+    label: 'AI Battle Arena',
+    icon: 'Trophy',
+    description: 'Watch AI models debate each other',
+    color: 'purple',
+  },
+  {
+    id: 'vision',
+    label: 'Vision Mode',
+    icon: 'Eye',
+    description: 'Upload or capture images for AI analysis',
     color: 'cyan',
   },
 ];

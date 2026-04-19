@@ -9,6 +9,8 @@ import { Message, ModeType, DebateResult, RoastResult, ExplainResult, ResearchRe
 import ChatMessage from '@/components/ChatMessage';
 import DebateView from '@/components/DebateView';
 import CodeRoastView from '@/components/CodeRoastView';
+import ArenaMode from '@/components/modes/ArenaMode';
+import VisionMode from '@/components/modes/VisionMode';
 import { useToast } from '@/components/Toast';
 import { Loader2, MessageSquare, Swords, Flame, Brain, Search, Zap, ArrowRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -20,6 +22,8 @@ const systemPrompts: Record<ModeType, string> = {
   explain: '',
   research: '',
   optimize: '',
+  arena: '',
+  vision: '',
 };
 
 const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; description: string; examples?: string[] }> = {
@@ -53,6 +57,16 @@ const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; des
     icon: Zap,
     title: 'Optimize Code',
     description: 'Paste your code and select the language to get performance optimization analysis with complexity improvements.',
+  },
+  arena: {
+    icon: Swords,
+    title: 'AI Battle Arena',
+    description: 'Watch two AI models argue against each other. You just sit back and enjoy.',
+  },
+  vision: {
+    icon: Search,
+    title: 'Vision Mode',
+    description: 'Upload or capture images for AI analysis. Perfect for code screenshots, diagrams, and error messages.',
   },
 };
 
@@ -425,6 +439,12 @@ export default function DashboardPage() {
       case 'optimize':
         handleOptimizeSubmit();
         break;
+      case 'arena':
+        // Arena mode handles its own submission
+        break;
+      case 'vision':
+        // Vision mode handles its own submission
+        break;
     }
   };
 
@@ -566,6 +586,10 @@ export default function DashboardPage() {
           );
         }
         return null;
+      case 'arena':
+        return <ArenaMode />;
+      case 'vision':
+        return <VisionMode />;
       default:
         if (messages.length === 0 && !isLoading) return renderEmptyState();
         return (

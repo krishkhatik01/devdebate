@@ -19,6 +19,7 @@ import {
   Menu,
   Terminal,
   Trophy,
+  Eye,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -29,6 +30,7 @@ const iconMap: Record<string, React.ElementType> = {
   Search,
   Zap,
   Trophy,
+  Eye,
 };
 
 interface SidebarProps {
@@ -108,32 +110,6 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
             );
           })}
         </nav>
-
-        {/* Arena */}
-        <div className={`px-4 mt-6 mb-2 ${collapsed ? 'text-center' : ''}`}>
-          {!collapsed && (
-            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.1em]">Arena</p>
-          )}
-        </div>
-        <div className="px-2">
-          <button
-            onClick={() => router.push('/arena')}
-            className={`w-full flex items-center gap-3 px-3 h-10 rounded-lg transition-all ${pathname === '/arena' || pathname.startsWith('/arena/')
-              ? 'bg-[var(--bg-elevated)] border-l-2 border-[var(--accent-primary)] text-[var(--text-primary)]'
-              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]/50 hover:text-[var(--text-primary)]'
-              } ${collapsed ? 'justify-center' : ''}`}
-          >
-            <Trophy size={16} className={pathname === '/arena' || pathname.startsWith('/arena/') ? 'text-[var(--accent-primary)]' : ''} />
-            {!collapsed && (
-              <>
-                <span className="text-sm font-medium">AI Battle Arena</span>
-                <span className="ml-auto text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full animate-pulse">
-                  NEW
-                </span>
-              </>
-            )}
-          </button>
-        </div>
 
         {/* History */}
         <div className={`px-4 mt-6 mb-2 ${collapsed ? 'text-center' : ''}`}>
