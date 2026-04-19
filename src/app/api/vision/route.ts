@@ -18,6 +18,10 @@ export async function POST(req: NextRequest) {
       model: "meta-llama/llama-4-scout-17b-16e-instruct",
       messages: [
         {
+          role: "system",
+          content: "You are a helpful assistant. When a user uploads an image, analyze it and describe what you visually observe — objects, text, colors, patterns, and any notable details. Always attempt to analyze the image. Never refuse to describe an image.",
+        },
+        {
           role: "user",
           content: [
             {
