@@ -15,7 +15,6 @@ import {
   Search,
   Zap,
   Trophy,
-  Eye
 } from "lucide-react";
 import { ModeType, MODES } from "@/lib/types";
 import VoiceButton from "./VoiceButton";
@@ -37,10 +36,9 @@ const iconMap: Record<string, React.ElementType> = {
   Search,
   Zap,
   Trophy,
-  Eye,
 };
 
-// Chat modes (shown in dropdown)
+// Chat modes (shown in dropdown) - vision removed
 const CHAT_MODES: ModeType[] = ['chat', 'debate', 'roast', 'explain', 'research', 'optimize', 'arena'];
 
 export default function SmartChatInput({
@@ -272,20 +270,7 @@ export default function SmartChatInput({
                     </button>
                   );
                 })}
-                <div className="border-t border-[var(--border)] my-1.5" />
-                <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-2 py-1.5">
-                  Other
-                </p>
-                <button
-                  onClick={() => handleModeSelect('vision')}
-                  className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[13px] transition-all ${currentMode === 'vision'
-                    ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]"
-                    }`}
-                >
-                  <Eye size={14} />
-                  Vision Mode
-                </button>
+
               </div>
             )}
           </div>

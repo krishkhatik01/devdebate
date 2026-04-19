@@ -12,7 +12,7 @@ import CodeRoastView from '@/components/CodeRoastView';
 import ArenaMode from '@/components/modes/ArenaMode';
 import { useToast } from '@/components/Toast';
 import SmartChatInput from '@/components/SmartChatInput';
-import { Loader2, MessageSquare, Swords, Flame, Brain, Search, Zap, ArrowRight } from 'lucide-react';
+import { MessageSquare, Swords, Flame, Brain, Search, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const systemPrompts: Record<ModeType, string> = {
@@ -23,7 +23,6 @@ const systemPrompts: Record<ModeType, string> = {
   research: '',
   optimize: '',
   arena: '',
-  vision: '',
 };
 
 const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; description: string; examples?: string[] }> = {
@@ -65,11 +64,6 @@ const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; des
     title: 'AI Battle Arena',
     description: 'Watch two AI models argue against each other. You just sit back and enjoy.',
   },
-  vision: {
-    icon: Search,
-    title: 'Vision Mode',
-    description: 'Upload or capture images for AI analysis.',
-  },
 };
 
 export default function DashboardPage() {
@@ -93,7 +87,6 @@ export default function DashboardPage() {
   const [debateContext, setDebateContext] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -102,13 +95,6 @@ export default function DashboardPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
-    }
-  }, [input]);
 
   const saveSession = async (mode: ModeType, title: string, msgs: Message[]) => {
     if (!user) return;
@@ -447,11 +433,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      handleSubmit();
-    }
-  };
+
 
   const renderEmptyState = () => {
     const config = modeConfig[currentMode];
@@ -604,25 +586,15 @@ export default function DashboardPage() {
     }
   };
 
-  const getPlaceholder = () => {
-    return '';
-  };
-
   const CurrentIcon = modeConfig[currentMode].icon;
 
   return (
     <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
       {/* Top Bar */}
-      <header className="h-[52px] border-b border-[var(--border)] flex items-center justify-between px-6 bg-[var(--bg-primary)]">
+      <header className="h-[52px] border-b border-[var(--border)] flex items-center px-6 bg-[var(--bg-primary)]">
         <div className="flex items-center gap-2">
           <CurrentIcon className="w-4 h-4 text-[var(--accent-primary)]" />
           <span className="text-sm font-medium text-[var(--text-primary)]">{modeConfig[currentMode].title}</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] font-mono text-[10px]">⌘</kbd>
-          <span>+</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] font-mono text-[10px]">Enter</kbd>
-          <span className="ml-1">to send</span>
         </div>
       </header>
 
@@ -634,72 +606,14 @@ export default function DashboardPage() {
 
       {/* Input Area */}
       <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
-        {currentMode === 'debate' ? (
-          <div className="max-w-4xl mx-auto space-y-3">
-            <input
-              type="text"
-              value={debateTopic}
-              onChange={(e) => setDebateTopic(e.target.value)}
-              placeholder=""
-              className="w-full px-4 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-strong)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[0_0_0_3px_rgba(0,212,255,0.1)] transition-all"
-            />
-            <textarea
-              value={debateContext}
-              onChange={(e) => setDebateContext(e.target.value)}
-              placeholder=""
-              className="w-full px-4 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-strong)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[0_0_0_3px_rgba(0,212,255,0.1)] transition-all resize-none h-20"
-            />
-            <button
-              onClick={handleDebateSubmit}
-              disabled={!debateTopic.trim() || isLoading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--accent-primary)] text-[#0a0a0b] font-semibold hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Generating debate...
-                </>
-              ) : (
-                <>
-                  <Swords className="w-5 h-5" />
-                  Start Debate
-                </>
-              )}
-            </button>
-          </div>
-        ) : currentMode === 'chat' ? (
-          <SmartChatInput
-            input={input}
-            setInput={setInput}
-            onSend={handleChatSubmit}
-            isLoading={isLoading}
-            currentMode={currentMode}
-            onModeChange={setCurrentMode}
-          />
-        ) : (
-          <div className="max-w-4xl mx-auto relative">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={getPlaceholder()}
-              className="w-full px-4 py-3.5 pr-14 rounded-xl bg-[var(--bg-card)] border border-[var(--border-strong)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[0_0_0_3px_rgba(0,212,255,0.1)] transition-all resize-none min-h-[52px] max-h-[200px] scrollbar-thin"
-              rows={1}
-            />
-            <button
-              onClick={handleSubmit}
-              disabled={!input.trim() || isLoading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--accent-primary)] text-[#0a0a0b] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <ArrowRight className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        )}
+        <SmartChatInput
+          input={input}
+          setInput={setInput}
+          onSend={handleSubmit}
+          isLoading={isLoading}
+          currentMode={currentMode}
+          onModeChange={setCurrentMode}
+        />
       </div>
     </div>
   );

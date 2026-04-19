@@ -12,7 +12,7 @@ export interface Message {
   timestamp: Date;
 }
 
-export type ModeType = 'chat' | 'debate' | 'roast' | 'explain' | 'research' | 'optimize' | 'arena' | 'vision';
+export type ModeType = 'chat' | 'debate' | 'roast' | 'explain' | 'research' | 'optimize' | 'arena';
 
 export interface Session {
   id: string;
@@ -104,12 +104,5 @@ export const MODES: ModeConfig[] = [
     icon: 'Trophy',
     description: 'Watch AI models debate each other',
     color: 'purple',
-  },
-  {
-    id: 'vision',
-    label: 'Vision Mode',
-    icon: 'Eye',
-    description: 'Upload or capture images for AI analysis',
-    color: 'cyan',
   },
 ];
