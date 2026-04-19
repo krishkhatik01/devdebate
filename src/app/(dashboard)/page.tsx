@@ -32,6 +32,8 @@ const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; des
     title: 'Smart Chat',
     description: 'Ask me anything about software development. I\'ll provide concise answers with code examples and clear explanations.',
   },
+
+
   debate: {
     icon: Swords,
     title: 'Debate Mode',

@@ -3,38 +3,17 @@
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { MODES, ModeType } from '@/lib/types';
-
-// Filter out vision mode from sidebar (accessed via Smart Chat attachment)
-const SIDEBAR_MODES = MODES.filter(m => m.id !== 'vision');
+import { ModeType } from '@/lib/types';
 import ThemeToggle from './ThemeToggle';
 import {
   MessageSquare,
-  Swords,
-  Flame,
-  Brain,
-  Search,
-  Zap,
   History,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Menu,
   Terminal,
-  Trophy,
-  Eye,
 } from 'lucide-react';
-
-const iconMap: Record<string, React.ElementType> = {
-  MessageSquare,
-  Swords,
-  Flame,
-  Brain,
-  Search,
-  Zap,
-  Trophy,
-  Eye,
-};
 
 interface SidebarProps {
   currentMode: ModeType;
@@ -80,38 +59,21 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
         </div>
       </div>
 
-      {/* Modes */}
+      {/* Chat */}
       <div className="flex-1 overflow-y-auto py-4">
-        <div className={`px-4 mb-2 ${collapsed ? 'text-center' : ''}`}>
-          {!collapsed && (
-            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.1em]">Modes</p>
-          )}
-        </div>
         <nav className="space-y-0.5 px-2">
-          {SIDEBAR_MODES.map((mode) => {
-            const Icon = iconMap[mode.icon];
-            const isActive = currentMode === mode.id;
-            return (
-              <button
-                key={mode.id}
-                onClick={() => handleModeClick(mode.id)}
-                className={`w-full flex items-center gap-3 px-3 h-10 rounded-lg transition-all ${isActive
-                  ? 'bg-[var(--bg-elevated)] border-l-2 border-[var(--accent-primary)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]/50 hover:text-[var(--text-primary)]'
-                  } ${collapsed ? 'justify-center' : ''}`}
-              >
-                <Icon size={16} className={isActive ? 'text-[var(--accent-primary)]' : ''} />
-                {!collapsed && (
-                  <span className="text-sm font-medium">{mode.label}</span>
-                )}
-                {!collapsed && mode.id === 'debate' && (
-                  <span className="ml-auto text-[10px] bg-[#1a1a2e] text-[var(--accent-primary)] px-2 py-0.5 rounded-full">
-                    Featured
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          <button
+            onClick={() => handleModeClick('chat')}
+            className={`w-full flex items-center gap-3 px-3 h-10 rounded-lg transition-all ${currentMode === 'chat'
+              ? 'bg-[var(--bg-elevated)] border-l-2 border-[var(--accent-primary)] text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]/50 hover:text-[var(--text-primary)]'
+              } ${collapsed ? 'justify-center' : ''}`}
+          >
+            <MessageSquare size={16} className={currentMode === 'chat' ? 'text-[var(--accent-primary)]' : ''} />
+            {!collapsed && (
+              <span className="text-sm font-medium">Chat</span>
+            )}
+          </button>
         </nav>
 
         {/* History */}

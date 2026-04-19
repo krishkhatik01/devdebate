@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { 
-  Paperclip, 
-  Image as ImageIcon, 
-  FileText, 
-  X, 
-  ChevronDown, 
+import {
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
+  X,
+  ChevronDown,
   Send,
   MessageSquare,
   Swords,
@@ -263,8 +263,8 @@ export default function SmartChatInput({
                       key={mode.id}
                       onClick={() => handleModeSelect(mode.id)}
                       className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[13px] transition-all ${currentMode === mode.id
-                          ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                          : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]"
+                        ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]"
                         }`}
                     >
                       <Icon size={14} />
@@ -279,8 +279,8 @@ export default function SmartChatInput({
                 <button
                   onClick={() => handleModeSelect('vision')}
                   className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[13px] transition-all ${currentMode === 'vision'
-                      ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]"
+                    ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]"
                     }`}
                 >
                   <Eye size={14} />

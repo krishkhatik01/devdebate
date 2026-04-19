@@ -8,8 +8,8 @@ interface VoiceButtonProps {
   disabled?: boolean;
 }
 
-export default function VoiceButton({ 
-  onTranscript, onSpeakText, disabled 
+export default function VoiceButton({
+  onTranscript, onSpeakText, disabled
 }: VoiceButtonProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -103,7 +103,7 @@ export default function VoiceButton({
     // Wait for voices to load — KEY FIX
     const setVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-      const preferred = 
+      const preferred =
         voices.find(v => v.name.includes("Google US English")) ||
         voices.find(v => v.name.includes("Google") && v.lang === "en-US") ||
         voices.find(v => v.lang === "en-US" && !v.localService) ||
@@ -162,11 +162,10 @@ export default function VoiceButton({
           onClick={toggleListening}
           disabled={disabled}
           title={isListening ? "Stop listening" : "Voice input"}
-          className={`p-2 rounded-xl transition-all border ${
-            isListening
+          className={`p-2 rounded-xl transition-all border ${isListening
               ? "bg-red-500 border-red-500 text-white animate-pulse"
               : "bg-transparent border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
-          }`}
+            }`}
         >
           {isListening ? <MicOff size={16} /> : <Mic size={16} />}
         </button>
@@ -177,11 +176,10 @@ export default function VoiceButton({
         <button
           onClick={speakText}
           title={isSpeaking ? "Stop speaking" : "Read aloud"}
-          className={`p-2 rounded-xl transition-all border ${
-            isSpeaking
+          className={`p-2 rounded-xl transition-all border ${isSpeaking
               ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white"
               : "bg-transparent border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
-          }`}
+            }`}
         >
           {isSpeaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
         </button>
