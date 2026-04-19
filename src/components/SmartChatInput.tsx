@@ -22,7 +22,7 @@ import VoiceButton from "./VoiceButton";
 interface SmartChatInputProps {
   input: string;
   setInput: (value: string) => void;
-  onSend: () => void;
+  onSend: (imageData?: { base64: string; mimeType: string }) => void;
   isLoading: boolean;
   currentMode: ModeType;
   onModeChange: (mode: ModeType) => void;
@@ -91,7 +91,22 @@ export default function SmartChatInput({
 
   const handleSend = () => {
     if (!input.trim() && !attachedImage && !attachedFile) return;
-    onSend();
+    
+    // If image attached, extract base64 and mimeType from data URL
+    if (attachedImage) {
+      const dataUrl = attachedImage.preview;
+      const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+      if (match) {
+        const mimeType = match[1];
+        const base64 = match[2];
+        onSend({ base64, mimeType });
+      } else {
+        onSend();
+      }
+    } else {
+      onSend();
+    }
+    
     // Clear attachments after send
     setAttachedImage(null);
     setAttachedFile(null);

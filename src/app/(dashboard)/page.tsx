@@ -124,13 +124,17 @@ export default function DashboardPage() {
     }
   };
 
-  const handleChatSubmit = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleChatSubmit = async (imageData?: { base64: string; mimeType: string }) => {
+    if ((!input.trim() && !imageData) || isLoading) return;
+
+    const userContent = imageData
+      ? `[Image attached] ${input.trim() || 'Analyze this image'}`
+      : input.trim();
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: userContent,
       timestamp: new Date(),
     };
 
@@ -140,22 +144,46 @@ export default function DashboardPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          systemPrompt: systemPrompts[currentMode],
-        }),
-      });
+      let assistantContent: string;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to get response');
+      if (imageData) {
+        // Use xAI Vision API for image analysis
+        const response = await fetch('/api/vision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base64Image: imageData.base64,
+            mimeType: imageData.mimeType,
+            prompt: input.trim() || 'Analyze this image',
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || 'Failed to analyze image');
+        }
+
+        const data = await response.json();
+        assistantContent = data.response || 'No response generated';
+      } else {
+        // Use regular chat API for text-only
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            systemPrompt: systemPrompts[currentMode],
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || 'Failed to get response');
+        }
+
+        const data = await response.json();
+        assistantContent = data.content || 'No response generated';
       }
-
-      const data = await response.json();
-      const assistantContent = data.content || 'No response generated';
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -166,7 +194,7 @@ export default function DashboardPage() {
 
       const finalMessages = [...newMessages, assistantMessage];
       setMessages(finalMessages);
-      await saveSession(currentMode, userMessage.content, finalMessages);
+      await saveSession(currentMode, userContent, finalMessages);
 
     } catch (error) {
       console.error('Chat error:', error);
@@ -407,10 +435,10 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (imageData?: { base64: string; mimeType: string }) => {
     switch (currentMode) {
       case 'chat':
-        handleChatSubmit();
+        handleChatSubmit(imageData);
         break;
       case 'debate':
         handleDebateSubmit();
