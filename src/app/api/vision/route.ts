@@ -1,78 +1,104 @@
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
-
-// Debug logging at the very top
-console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
-console.log("GEMINI_API_KEY value:", process.env.GEMINI_API_KEY?.substring(0, 15));
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-// Auto-detect working model
-const GEMINI_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-pro-vision"
-];
-
-async function getWorkingModel(): Promise<GenerativeModel> {
-  for (const modelName of GEMINI_MODELS) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      // Test with a simple request
-      await model.generateContent("test");
-      console.log(`✅ Working Gemini model found: ${modelName}`);
-      return model;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.log(`❌ Model ${modelName} failed:`, errorMessage);
-      continue;
-    }
-  }
-  throw new Error("No working Gemini model found");
-}
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
+  console.log("=== VISION API CALLED ===");
+  console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+  console.log("GEMINI_API_KEY prefix:", process.env.GEMINI_API_KEY?.substring(0, 20));
+
   try {
-    const { base64Image, mimeType, prompt } = await req.json();
-
-    if (!base64Image || !prompt) {
-      return NextResponse.json(
-        { error: "Image and prompt are required" },
-        { status: 400 }
-      );
-    }
-
+    // Check API key
     if (!process.env.GEMINI_API_KEY) {
+      console.error("❌ GEMINI_API_KEY is missing!");
       return NextResponse.json(
-        { error: "Gemini API key not configured" },
+        { error: "GEMINI_API_KEY is missing in .env.local" },
         { status: 500 }
       );
     }
 
-    // Auto-detect and use the first working Gemini model
-    const model = await getWorkingModel();
+    // Parse request
+    const { image, mimeType, message } = await req.json();
+    console.log("Image received:", !!image);
+    console.log("MimeType:", mimeType);
+    console.log("Message:", message);
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: mimeType,
-          data: base64Image,
-        },
-      },
-      prompt || "Analyze this image in detail",
-    ]);
+    if (!image) {
+      return NextResponse.json(
+        { error: "No image provided" },
+        { status: 400 }
+      );
+    }
 
-    const response = result.response.text();
-    return NextResponse.json({ response });
+    // Init Gemini
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-  } catch (error: unknown) {
-    console.error("Vision error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Vision analysis failed";
+    // First fetch available models from Gemini
+    const modelsResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`
+    );
+    const modelsData = await modelsResponse.json();
+    console.log("Available models:", JSON.stringify(modelsData, null, 2));
+
+    // Filter only models that support generateContent
+    const availableModels = modelsData.models
+      ?.filter((m: { supportedGenerationMethods?: string[]; name: string }) =>
+        m.supportedGenerationMethods?.includes("generateContent") &&
+        m.name.includes("gemini")
+      )
+      .map((m: { name: string }) => m.name.replace("models/", ""));
+
+    console.log("Usable models:", availableModels);
+
+    // Use first available model
+    const MODELS = availableModels?.length > 0
+      ? availableModels
+      : ["gemini-2.0-flash"];
+
+    let lastError = null;
+
+    for (const modelName of MODELS) {
+      try {
+        console.log(`🔄 Trying model: ${modelName}`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              mimeType: mimeType || "image/jpeg",
+              data: image,
+            },
+          },
+          message || "Analyze this image in detail",
+        ]);
+
+        const response = result.response.text();
+        console.log(`✅ Success with model: ${modelName}`);
+
+        return NextResponse.json({ result: response });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.log(`❌ Model ${modelName} failed:`, errorMessage);
+        lastError = err;
+        continue;
+      }
+    }
+
+    // All models failed
+    const lastErrorMessage = lastError instanceof Error ? lastError.message : String(lastError);
+    console.error("❌ All models failed. Last error:", lastErrorMessage);
     return NextResponse.json(
-      { error: errorMessage },
+      { error: `All Gemini models failed: ${lastErrorMessage}` },
+      { status: 500 }
+    );
+
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : "";
+    console.error("=== FULL ERROR ===");
+    console.error("Message:", errorMessage);
+    console.error("Stack:", errorStack);
+    return NextResponse.json(
+      { error: errorMessage || "Vision analysis failed" },
       { status: 500 }
     );
   }

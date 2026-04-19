@@ -147,14 +147,14 @@ export default function DashboardPage() {
       let assistantContent: string;
 
       if (imageData) {
-        // Use xAI Vision API for image analysis
+        // Use Gemini Vision API for image analysis
         const response = await fetch('/api/vision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            base64Image: imageData.base64,
+            image: imageData.base64,
             mimeType: imageData.mimeType,
-            prompt: input.trim() || 'Analyze this image',
+            message: input.trim() || 'Analyze this image',
           }),
         });
 
@@ -164,7 +164,7 @@ export default function DashboardPage() {
         }
 
         const data = await response.json();
-        assistantContent = data.response || 'No response generated';
+        assistantContent = data.result || 'No response generated';
       } else {
         // Use regular chat API for text-only
         const response = await fetch('/api/chat', {
