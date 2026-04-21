@@ -53,7 +53,12 @@ export default function RoomPage() {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<Message[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    historyRef.current = messages;
+  }, [messages]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -259,7 +264,7 @@ export default function RoomPage() {
         setTimeout(async () => {
           try {
             const aiContext = [
-              ...messages.slice(-9).map(m => ({
+              ...historyRef.current.slice(-9).map(m => ({
                  role: m.senderId === AI_MEMBER.userId ? 'assistant' : 'user',
                  content: `${m.senderName}: ${m.text}`
               })),
@@ -329,6 +334,13 @@ export default function RoomPage() {
   const handleEmojiClick = (emojiData: { emoji: string }) => {
     setInputMessage(prev => prev + emojiData.emoji);
     setShowEmojiPicker(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
   const onlineMembers = members.filter(m => m.online);
@@ -579,6 +591,7 @@ export default function RoomPage() {
                     setInputMessage(e.target.value);
                     handleTyping();
                   }}
+                  onKeyDown={handleKeyDown}
                   placeholder="Type a message... Use @AI for AI assistance"
                   rows={1}
                   className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] resize-none min-h-[44px] max-h-[120px]"

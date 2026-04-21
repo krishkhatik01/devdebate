@@ -84,6 +84,13 @@ export default function SmartChatInput({
 
 
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   const handleSend = () => {
     if (!input.trim() && !attachedImage && !attachedFile) return;
 
@@ -238,6 +245,7 @@ export default function SmartChatInput({
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Message DevDebate..."
           className="flex-1 bg-transparent border-none outline-none text-[var(--text-primary)] text-[15px] placeholder-[var(--text-muted)] resize-none min-h-[24px] max-h-[200px] py-2"
           rows={1}
