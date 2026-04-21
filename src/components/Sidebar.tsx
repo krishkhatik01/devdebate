@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Menu,
   Terminal,
+  Users,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -42,6 +43,11 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
     setMobileOpen(false);
   };
 
+  const handleTeamsClick = () => {
+    router.push('/teams');
+    setMobileOpen(false);
+  };
+
   const sidebarContent = (
     <>
       {/* Logo */}
@@ -59,7 +65,7 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
         </div>
       </div>
 
-      {/* Chat */}
+      {/* Chat & Teams */}
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-0.5 px-2">
           <button
@@ -72,6 +78,19 @@ export default function Sidebar({ currentMode, onModeChange }: SidebarProps) {
             <MessageSquare size={16} className={currentMode === 'chat' ? 'text-[var(--accent-primary)]' : ''} />
             {!collapsed && (
               <span className="text-sm font-medium">Chat</span>
+            )}
+          </button>
+
+          <button
+            onClick={handleTeamsClick}
+            className={`w-full flex items-center gap-3 px-3 h-10 rounded-lg transition-all ${pathname === '/teams' || pathname.startsWith('/teams/')
+              ? 'bg-[var(--bg-elevated)] border-l-2 border-[var(--accent-primary)] text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]/50 hover:text-[var(--text-primary)]'
+              } ${collapsed ? 'justify-center' : ''}`}
+          >
+            <Users size={16} className={pathname === '/teams' || pathname.startsWith('/teams/') ? 'text-[var(--accent-primary)]' : ''} />
+            {!collapsed && (
+              <span className="text-sm font-medium">Teams</span>
             )}
           </button>
         </nav>

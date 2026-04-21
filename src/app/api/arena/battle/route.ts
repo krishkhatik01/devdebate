@@ -7,15 +7,8 @@ export async function POST(req: NextRequest) {
   try {
     const {
       topic, context, forModel, againstModel,
-      round, totalRounds, roundType, previousArguments
+      round, totalRounds, roundType, messages
     } = await req.json();
-
-    const prevContext = previousArguments?.length > 0
-      ? "Previous rounds:\n" + previousArguments
-        .map((a: { round: number; side: string; content: string }) =>
-          `${a.side.toUpperCase()} (Round ${a.round}): ${a.content}`)
-        .join("\n")
-      : "";
 
     // FOR argument
     const forRes = await groq.chat.completions.create({
@@ -27,7 +20,6 @@ export async function POST(req: NextRequest) {
 Topic: "${topic}"
 Context: ${context || "general"}
 This is Round ${round} of ${totalRounds} — ${roundType} argument.
-${prevContext}
 Rules:
 - Give a powerful ${roundType} argument in 3-4 sentences max
 - Use specific technical examples
@@ -36,7 +28,7 @@ Rules:
 - Do NOT say "As an AI"
 - Just argue your point strongly`
         },
-        { role: "user", content: `Argue FOR: ${topic}` }
+        ...messages
       ],
       temperature: 0.85,
       max_tokens: 250,
@@ -54,7 +46,6 @@ Rules:
 Topic: "${topic}"
 Context: ${context || "general"}
 This is Round ${round} of ${totalRounds} — ${roundType} argument.
-${prevContext}
 The FOR side just argued: "${forArgument}"
 Rules:
 - Counter their argument AND make your own point
@@ -65,7 +56,7 @@ Rules:
 - Do NOT say "As an AI"
 - Demolish their argument`
         },
-        { role: "user", content: `Argue AGAINST: ${topic}` }
+        ...messages
       ],
       temperature: 0.85,
       max_tokens: 250,

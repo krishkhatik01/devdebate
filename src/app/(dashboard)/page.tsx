@@ -5,15 +5,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useDashboard } from './layout';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Message, ModeType, DebateResult, RoastResult, ExplainResult, ResearchResult, OptimizeResult } from '@/lib/types';
+import { Message, ModeType } from '@/lib/types';
 import ChatMessage from '@/components/ChatMessage';
-import DebateView from '@/components/DebateView';
-import CodeRoastView from '@/components/CodeRoastView';
-import ArenaMode from '@/components/modes/ArenaMode';
 import { useToast } from '@/components/Toast';
 import SmartChatInput from '@/components/SmartChatInput';
-import { MessageSquare, Swords, Flame, Brain, Search, Zap } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { MessageSquare, Swords, Flame, Brain, Search, Zap, Trash2 } from 'lucide-react';
 
 const systemPrompts: Record<ModeType, string> = {
   chat: 'You are an expert software engineer and developer assistant. Answer concisely, use code blocks when relevant, and always explain your reasoning.',
@@ -31,8 +27,6 @@ const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; des
     title: 'Smart Chat',
     description: 'Ask me anything about software development. I\'ll provide concise answers with code examples and clear explanations.',
   },
-
-
   debate: {
     icon: Swords,
     title: 'Debate Mode',
@@ -62,7 +56,7 @@ const modeConfig: Record<ModeType, { icon: React.ElementType; title: string; des
   arena: {
     icon: Swords,
     title: 'AI Battle Arena',
-    description: 'Watch two AI models argue against each other. You just sit back and enjoy.',
+    description: 'Watch two AI models argue against each other over multiple rounds.',
   },
 };
 
@@ -70,21 +64,26 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { currentMode, setCurrentMode } = useDashboard();
   const { showToast, ToastContainer } = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
+  
+  const [allMessages, setAllMessages] = useState<Record<string, Message[]>>({
+    chat: [],
+    explain: [],
+    roast: [],
+    debate: [],
+    research: [],
+    optimize: [],
+    arena: [],
+  });
+
+  const currentMessages = allMessages[currentMode] || [];
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
-  const [debateResult, setDebateResult] = useState<DebateResult | null>(null);
-  const [roastResult, setRoastResult] = useState<RoastResult | null>(null);
   const [roastIntensity, setRoastIntensity] = useState<'mild' | 'medium' | 'nuclear'>('medium');
-  const [explainResult, setExplainResult] = useState<ExplainResult | null>(null);
-  const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
-  const [optimizeResult, setOptimizeResult] = useState<OptimizeResult | null>(null);
   const [optimizeLanguage, setOptimizeLanguage] = useState('javascript');
-
   const [debateTopic, setDebateTopic] = useState('');
-  const [debateContext, setDebateContext] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -94,11 +93,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [currentMessages, isLoading]);
 
   const saveSession = async (mode: ModeType, title: string, msgs: Message[]) => {
     if (!user) return;
-
     try {
       const sessionData = {
         mode,
@@ -111,43 +109,54 @@ export default function DashboardPage() {
         userId: user.uid,
       };
 
-      if (sessionId) {
-        // Update existing session
-      } else {
+      if (!sessionId) {
         const docRef = await addDoc(collection(db, 'sessions', user.uid, 'chats'), sessionData);
         setSessionId(docRef.id);
-        showToast('Session saved to history', 'success');
+        showToast(`Session saved`, 'success');
       }
     } catch (error) {
       console.error('Error saving session:', error);
-      showToast('Failed to save session', 'error');
     }
   };
 
+  const clearChat = () => {
+    setAllMessages(prev => ({
+      ...prev,
+      [currentMode]: [],
+    }));
+    setSessionId(null);
+  };
+
+  const appendMessages = (userMsg: Message, aiMsg: Message) => {
+    setAllMessages(prev => {
+      const modeMsgs = [...(prev[currentMode] || []), userMsg, aiMsg];
+      saveSession(currentMode as ModeType, userMsg.content, modeMsgs);
+      return {
+        ...prev,
+        [currentMode]: modeMsgs,
+      };
+    });
+  };
+
+  const getHistoryPayload = () => {
+    return currentMessages.map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+  };
+
   const handleChatSubmit = async (imageData?: { base64: string; mimeType: string }) => {
-    if ((!input.trim() && !imageData) || isLoading) return;
-
-    const userContent = imageData
-      ? `[Image attached] ${input.trim() || 'Analyze this image'}`
-      : input.trim();
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: userContent,
-      timestamp: new Date(),
-    };
-
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    const userContent = imageData ? `[Image attached] ${input.trim() || 'Analyze this image'}` : input.trim();
+    
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: userContent, timestamp: new Date() };
+    
+    setAllMessages(prev => ({ ...prev, [currentMode]: [...(prev[currentMode] || []), userMessage] }));
     setInput('');
     setIsLoading(true);
 
     try {
       let assistantContent: string;
-
       if (imageData) {
-        // Use Gemini Vision API for image analysis
         const response = await fetch('/api/vision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,101 +166,57 @@ export default function DashboardPage() {
             message: input.trim() || 'Analyze this image',
           }),
         });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errorData.error || 'Failed to analyze image');
-        }
-
         const data = await response.json();
-        assistantContent = data.result || 'No response generated';
+        assistantContent = data.result || 'No response';
       } else {
-        // Use regular chat API for text-only
+        const history = getHistoryPayload();
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-            systemPrompt: systemPrompts[currentMode],
+            messages: [...history, { role: 'user', content: userContent }],
+            systemPrompt: systemPrompts[currentMode as ModeType],
           }),
         });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errorData.error || 'Failed to get response');
-        }
-
         const data = await response.json();
-        assistantContent = data.content || 'No response generated';
+        assistantContent = data.content || 'No response';
       }
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: assistantContent,
-        timestamp: new Date(),
-      };
-
-      const finalMessages = [...newMessages, assistantMessage];
-      setMessages(finalMessages);
-      await saveSession(currentMode, userContent, finalMessages);
-
+      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: assistantContent, timestamp: new Date() };
+      
+      appendMessages(userMessage, assistantMessage);
     } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date(),
-      }]);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDebateSubmit = async () => {
-    if (!debateTopic.trim() || isLoading) return;
-
-    const topic = debateTopic;
-    const context = debateContext;
+    const topic = debateTopic || input;
+    if (!topic.trim() || isLoading) return;
+    
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: `Debate: ${topic}`, timestamp: new Date() };
+    setAllMessages(prev => ({ ...prev, [currentMode]: [...(prev[currentMode] || []), userMessage] }));
+    
     setDebateTopic('');
-    setDebateContext('');
+    setInput('');
     setIsLoading(true);
-    setDebateResult(null);
 
     try {
+      const history = getHistoryPayload();
       const response = await fetch('/api/debate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic: topic,
-          context: context,
-        }),
+        body: JSON.stringify({ messages: [...history, { role: 'user', content: `Debate topic: ${topic}` }] }),
       });
-
-      if (!response.ok) throw new Error('Failed to generate debate');
-
       const result = await response.json();
-      setDebateResult(result);
-
-      const debateMessages: Message[] = [
-        {
-          id: Date.now().toString(),
-          role: 'user',
-          content: `Debate: ${topic}\nContext: ${context || 'None'}`,
-          timestamp: new Date(),
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `**FOR:**\n${result.for}\n\n**AGAINST:**\n${result.against}\n\n**VERDICT:**\n${result.verdict}`,
-          timestamp: new Date(),
-        },
-      ];
-      await saveSession('debate', topic, debateMessages);
-
+      const content = `**FOR:**\n${result.for}\n\n**AGAINST:**\n${result.against}\n\n**VERDICT:**\n${result.verdict}`;
+      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content, timestamp: new Date() };
+      
+      appendMessages(userMessage, assistantMessage);
     } catch (error) {
-      console.error('Debate error:', error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -259,45 +224,26 @@ export default function DashboardPage() {
 
   const handleRoastSubmit = async () => {
     if (!input.trim() || isLoading) return;
-
     const code = input;
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: `Roast my code (${roastIntensity}):\n\`\`\`\n${code}\n\`\`\``, timestamp: new Date() };
+    setAllMessages(prev => ({ ...prev, [currentMode]: [...(prev[currentMode] || []), userMessage] }));
     setInput('');
     setIsLoading(true);
-    setRoastResult(null);
 
     try {
+      const history = getHistoryPayload();
       const response = await fetch('/api/roast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: code,
-          intensity: roastIntensity,
-        }),
+        body: JSON.stringify({ messages: [...history, { role: 'user', content: `Roast this code (${roastIntensity}):\n\`\`\`\n${code}\n\`\`\`` }], intensity: roastIntensity }),
       });
-
-      if (!response.ok) throw new Error('Failed to roast code');
-
       const result = await response.json();
-      setRoastResult(result);
-
-      const roastMessages: Message[] = [
-        {
-          id: Date.now().toString(),
-          role: 'user',
-          content: `Roast my code (${roastIntensity}):\n\`\`\`\n${code}\n\`\`\``,
-          timestamp: new Date(),
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `**ROAST:**\n${result.roast}\n\n**FIXED:**\n${result.fixed}`,
-          timestamp: new Date(),
-        },
-      ];
-      await saveSession('roast', 'Code Roast', roastMessages);
-
+      const content = `**ROAST:**\n${result.roast}\n\n**FIXED:**\n${result.fixed}`;
+      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content, timestamp: new Date() };
+      
+      appendMessages(userMessage, assistantMessage);
     } catch (error) {
-      console.error('Roast error:', error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -305,42 +251,24 @@ export default function DashboardPage() {
 
   const handleExplainSubmit = async () => {
     if (!input.trim() || isLoading) return;
-
     const query = input;
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: `Explain: ${query}`, timestamp: new Date() };
+    setAllMessages(prev => ({ ...prev, [currentMode]: [...(prev[currentMode] || []), userMessage] }));
     setInput('');
     setIsLoading(true);
-    setExplainResult(null);
 
     try {
+      const history = getHistoryPayload();
       const response = await fetch('/api/explain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: query }),
+        body: JSON.stringify({ messages: [...history, { role: "user", content: query }] }),
       });
-
-      if (!response.ok) throw new Error('Failed to explain');
-
       const result = await response.json();
-      setExplainResult(result);
-
-      const explainMessages: Message[] = [
-        {
-          id: Date.now().toString(),
-          role: 'user',
-          content: `Explain: ${query}`,
-          timestamp: new Date(),
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: result.explanation,
-          timestamp: new Date(),
-        },
-      ];
-      await saveSession('explain', `Explain: ${query.slice(0, 30)}...`, explainMessages);
-
+      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: result.explanation, timestamp: new Date() };
+      appendMessages(userMessage, assistantMessage);
     } catch (error) {
-      console.error('Explain error:', error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -348,42 +276,24 @@ export default function DashboardPage() {
 
   const handleResearchSubmit = async () => {
     if (!input.trim() || isLoading) return;
-
     const topic = input;
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: `Research: ${topic}`, timestamp: new Date() };
+    setAllMessages(prev => ({ ...prev, [currentMode]: [...(prev[currentMode] || []), userMessage] }));
     setInput('');
     setIsLoading(true);
-    setResearchResult(null);
 
     try {
+      const history = getHistoryPayload();
       const response = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topic }),
+        body: JSON.stringify({ messages: [...history, { role: 'user', content: `Write a research report on: ${topic}` }] }),
       });
-
-      if (!response.ok) throw new Error('Failed to research');
-
       const result = await response.json();
-      setResearchResult(result);
-
-      const researchMessages: Message[] = [
-        {
-          id: Date.now().toString(),
-          role: 'user',
-          content: `Research: ${topic}`,
-          timestamp: new Date(),
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: result.report,
-          timestamp: new Date(),
-        },
-      ];
-      await saveSession('research', `Research: ${topic.slice(0, 30)}...`, researchMessages);
-
+      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: result.report, timestamp: new Date() };
+      appendMessages(userMessage, assistantMessage);
     } catch (error) {
-      console.error('Research error:', error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -391,80 +301,81 @@ export default function DashboardPage() {
 
   const handleOptimizeSubmit = async () => {
     if (!input.trim() || isLoading) return;
-
     const code = input;
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: `Optimize ${optimizeLanguage} code:\n\`\`\`${optimizeLanguage}\n${code}\n\`\`\``, timestamp: new Date() };
+    setAllMessages(prev => ({ ...prev, [currentMode]: [...(prev[currentMode] || []), userMessage] }));
     setInput('');
     setIsLoading(true);
-    setOptimizeResult(null);
 
     try {
+      const history = getHistoryPayload();
       const response = await fetch('/api/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: code,
-          language: optimizeLanguage,
-        }),
+        body: JSON.stringify({ messages: [...history, { role: 'user', content: `Optimize this ${optimizeLanguage} code:\n\`\`\`${optimizeLanguage}\n${code}\n\`\`\`` }], language: optimizeLanguage }),
       });
-
-      if (!response.ok) throw new Error('Failed to optimize');
-
       const result = await response.json();
-      setOptimizeResult(result);
-
-      const optimizeMessages: Message[] = [
-        {
-          id: Date.now().toString(),
-          role: 'user',
-          content: `Optimize ${optimizeLanguage} code:\n\`\`\`\n${code}\n\`\`\``,
-          timestamp: new Date(),
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `**ISSUES:**\n${result.issues}\n\n**OPTIMIZED:**\n${result.optimized}`,
-          timestamp: new Date(),
-        },
-      ];
-      await saveSession('optimize', `Optimize: ${optimizeLanguage}`, optimizeMessages);
-
+      const content = `**ISSUES FOUND:**\n${result.issues}\n\n**OPTIMIZED CODE:**\n${result.optimized}`;
+      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content, timestamp: new Date() };
+      appendMessages(userMessage, assistantMessage);
     } catch (error) {
-      console.error('Optimize error:', error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSubmit = (imageData?: { base64: string; mimeType: string }) => {
-    switch (currentMode) {
-      case 'chat':
-        handleChatSubmit(imageData);
-        break;
-      case 'debate':
-        handleDebateSubmit();
-        break;
-      case 'roast':
-        handleRoastSubmit();
-        break;
-      case 'explain':
-        handleExplainSubmit();
-        break;
-      case 'research':
-        handleResearchSubmit();
-        break;
-      case 'optimize':
-        handleOptimizeSubmit();
-        break;
-      case 'arena':
-        // Arena mode handles its own submission
-        break;
+  const handleArenaSubmit = async () => {
+    if (!input.trim() || isLoading) return;
+    const topic = input;
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: `Arena Battle: ${topic}`, timestamp: new Date() };
+    setAllMessages(prev => ({ ...prev, [currentMode]: [...(prev[currentMode] || []), userMessage] }));
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const history = getHistoryPayload();
+      const response = await fetch('/api/arena/battle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          topic, 
+          round: 1, 
+          totalRounds: 1, 
+          roundType: 'Opening',
+          forModel: 'llama-3.3-70b-versatile',
+          againstModel: 'llama-3.1-8b-instant',
+          messages: [...history, { role: 'user', content: `Debate this topic: ${topic}` }] 
+        }),
+      });
+      const result = await response.json();
+      
+      const content = `**🤖 FOR (llama-3.3-70b):**\n${result.forArgument}\n\n**🤖 AGAINST (llama-3.1-8b):**\n${result.againstArgument}\n\n**⚖️ JUDGE:**\nWinner: ${result.roundWinner} (FOR: ${result.forScore}/10 | AGAINST: ${result.againstScore}/10)\n${result.forFeedback} ${result.againstFeedback}`;
+      
+      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content, timestamp: new Date() };
+      appendMessages(userMessage, assistantMessage);
+    } catch(err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
 
+  const handleSubmit = (imageData?: { base64: string; mimeType: string }) => {
+    switch (currentMode) {
+      case 'chat': handleChatSubmit(imageData); break;
+      case 'debate': handleDebateSubmit(); break;
+      case 'roast': handleRoastSubmit(); break;
+      case 'explain': handleExplainSubmit(); break;
+      case 'research': handleResearchSubmit(); break;
+      case 'optimize': handleOptimizeSubmit(); break;
+      case 'arena': handleArenaSubmit(); break;
+    }
+  };
 
   const renderEmptyState = () => {
-    const config = modeConfig[currentMode];
+    const config = modeConfig[currentMode as ModeType];
     const Icon = config.icon;
 
     return (
@@ -478,16 +389,13 @@ export default function DashboardPage() {
         <p className="text-[var(--text-secondary)] max-w-md mb-6 text-sm">
           {config.description}
         </p>
+        
         {config.examples && (
           <div className="flex flex-wrap gap-2 justify-center">
             {config.examples.map((example) => (
               <button
                 key={example}
-                onClick={() => {
-                  if (currentMode === 'debate') {
-                    setDebateTopic(example);
-                  }
-                }}
+                onClick={() => { setInput(example); setDebateTopic(example); }}
                 className="px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors border border-[var(--border)]"
               >
                 {example}
@@ -495,11 +403,12 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+        
         {currentMode === 'optimize' && (
           <select
             value={optimizeLanguage}
             onChange={(e) => setOptimizeLanguage(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+            className="mt-4 px-4 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
           >
             <option value="javascript">JavaScript</option>
             <option value="typescript">TypeScript</option>
@@ -510,126 +419,69 @@ export default function DashboardPage() {
             <option value="cpp">C++</option>
           </select>
         )}
+        {currentMode === 'roast' && (
+          <select
+            value={roastIntensity}
+            onChange={(e) => setRoastIntensity(e.target.value as "mild" | "medium" | "nuclear")}
+            className="mt-4 px-4 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+          >
+            <option value="mild">Mild (Gentle Feedback)</option>
+            <option value="medium">Medium (Honest Critique)</option>
+            <option value="nuclear">Nuclear (Destroy Me)</option>
+          </select>
+        )}
       </div>
     );
   };
 
-  const renderModeContent = () => {
-    switch (currentMode) {
-      case 'debate':
-        return (
-          <DebateView
-            result={debateResult}
-            isLoading={isLoading}
-            onSave={() => { }}
-          />
-        );
-      case 'roast':
-        return (
-          <CodeRoastView
-            result={roastResult}
-            isLoading={isLoading}
-            intensity={roastIntensity}
-            onIntensityChange={setRoastIntensity}
-            onSave={() => { }}
-          />
-        );
-      case 'explain':
-        if (!explainResult && !isLoading) return renderEmptyState();
-        if (explainResult) {
-          return (
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
-                <div className="bg-[var(--accent-secondary)]/10 px-4 py-3 border-b border-[var(--accent-secondary)]/30">
-                  <h3 className="font-display font-semibold text-[var(--accent-secondary)]">Explanation</h3>
-                </div>
-                <div className="p-4 prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{explainResult.explanation}</ReactMarkdown>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        return null;
-      case 'research':
-        if (!researchResult && !isLoading) return renderEmptyState();
-        if (researchResult) {
-          return (
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
-                <div className="bg-[var(--accent-warning)]/10 px-4 py-3 border-b border-[var(--accent-warning)]/30">
-                  <h3 className="font-display font-semibold text-[var(--accent-warning)]">Research Report</h3>
-                </div>
-                <div className="p-4 prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{researchResult.report}</ReactMarkdown>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        return null;
-      case 'optimize':
-        if (!optimizeResult && !isLoading) return renderEmptyState();
-        if (optimizeResult) {
-          return (
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
-                <div className="bg-[var(--accent-danger)]/10 px-4 py-3 border-b border-[var(--accent-danger)]/30">
-                  <h3 className="font-display font-semibold text-[var(--accent-danger)]">Issues Found</h3>
-                </div>
-                <div className="p-4 prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{optimizeResult.issues}</ReactMarkdown>
-                </div>
-              </div>
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
-                <div className="bg-[var(--accent-secondary)]/10 px-4 py-3 border-b border-[var(--accent-secondary)]/30">
-                  <h3 className="font-display font-semibold text-[var(--accent-secondary)]">Optimized Code</h3>
-                </div>
-                <div className="p-4">
-                  <pre className="code-block p-4 rounded-lg overflow-x-auto">
-                    <code className="font-mono text-[13px] text-[var(--text-primary)]">{optimizeResult.optimized}</code>
-                  </pre>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        return null;
-      case 'arena':
-        return <ArenaMode />;
-      default:
-        if (messages.length === 0 && !isLoading) return renderEmptyState();
-        return (
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                isLoading={isLoading && message === messages[messages.length - 1] && message.role === 'assistant'}
-              />
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        );
-    }
-  };
-
-  const CurrentIcon = modeConfig[currentMode].icon;
+  const CurrentIcon = modeConfig[currentMode as ModeType].icon;
 
   return (
     <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
       {/* Top Bar */}
-      <header className="h-[52px] border-b border-[var(--border)] flex items-center px-6 bg-[var(--bg-primary)]">
+      <header className="h-[52px] border-b border-[var(--border)] flex items-center justify-between px-6 bg-[var(--bg-primary)]">
         <div className="flex items-center gap-2">
           <CurrentIcon className="w-4 h-4 text-[var(--accent-primary)]" />
-          <span className="text-sm font-medium text-[var(--text-primary)]">{modeConfig[currentMode].title}</span>
+          <span className="text-sm font-medium text-[var(--text-primary)]">{modeConfig[currentMode as ModeType].title}</span>
         </div>
+        <button
+          onClick={clearChat}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-all text-xs border border-transparent hover:border-[var(--border)]"
+        >
+          <Trash2 size={14} /> Clear Chat
+        </button>
       </header>
 
       {/* Main Content */}
-      {renderModeContent()}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {currentMessages.length === 0 && !isLoading ? (
+          renderEmptyState()
+        ) : (
+          <>
+            {currentMessages.map((message) => (
+              <ChatMessage
+                key={message.id}
+                message={message}
+                isLoading={false}
+              />
+            ))}
+            {isLoading && (
+              <div className="flex items-start gap-3 w-full max-w-4xl mx-auto opacity-0 animate-[fadeIn_0.3s_ease-out_forwards]">
+                <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-strong)] flex items-center justify-center flex-shrink-0 mt-1">
+                  🤖
+                </div>
+                <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl rounded-tl-sm px-5 py-3.5 flex items-center gap-2 h-10">
+                  <div className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-[bounce_1.4s_infinite_ease-in-out_both] [animation-delay:-0.32s]"></div>
+                  <div className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-[bounce_1.4s_infinite_ease-in-out_both] [animation-delay:-0.16s]"></div>
+                  <div className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-[bounce_1.4s_infinite_ease-in-out_both]"></div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
 
-      {/* Toast Container */}
       <ToastContainer />
 
       {/* Input Area */}

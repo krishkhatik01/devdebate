@@ -12,7 +12,7 @@ IMPORTANT LANGUAGE RULE: Detect the language of the user's code comments or mess
 
 export async function POST(req: NextRequest) {
   try {
-    const { code, intensity } = await req.json();
+    const { messages, intensity = 'medium' } = await req.json();
 
     const intensityDescriptions: Record<string, string> = {
       mild: 'gentle constructive criticism with some humor',
@@ -27,10 +27,7 @@ export async function POST(req: NextRequest) {
           role: 'system',
           content: `${LANGUAGE_RULE}\n\nYou are a brutally honest senior engineer doing a savage code review. Roast this code at ${intensity} level (${intensityDescriptions[intensity]}). Point out every bad practice, naming issue, performance problem, and security flaw. Use humor and sarcasm. Then provide a "REDEEMED VERSION" section with the completely fixed code.`,
         },
-        {
-          role: 'user',
-          content: `Roast this code:\n\n\`\`\`\n${code}\n\`\`\``,
-        },
+        ...messages,
       ],
       temperature: 0.9,
       max_tokens: 2048,

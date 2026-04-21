@@ -12,7 +12,7 @@ IMPORTANT LANGUAGE RULE: Detect the language of the user's message and always re
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic } = await req.json();
+    const { messages } = await req.json();
 
     const response = await groq.chat.completions.create({
       model: MODEL,
@@ -29,10 +29,7 @@ export async function POST(req: NextRequest) {
 
 Format with clear markdown headers and tables where appropriate. Be thorough and objective.`,
         },
-        {
-          role: 'user',
-          content: `Write a research report on: ${topic}`,
-        },
+        ...messages,
       ],
       temperature: 0.7,
       max_tokens: 3000,

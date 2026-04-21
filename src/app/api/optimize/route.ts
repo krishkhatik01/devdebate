@@ -12,7 +12,7 @@ IMPORTANT LANGUAGE RULE: Detect the language of the user's code comments or mess
 
 export async function POST(req: NextRequest) {
   try {
-    const { code, language } = await req.json();
+    const { messages, language = 'javascript' } = await req.json();
 
     const response = await groq.chat.completions.create({
       model: MODEL,
@@ -27,10 +27,7 @@ export async function POST(req: NextRequest) {
 
 Be specific about Big O notation and practical improvements.`,
         },
-        {
-          role: 'user',
-          content: `Optimize this ${language} code:\n\n\`\`\`${language}\n${code}\n\`\`\``,
-        },
+        ...messages,
       ],
       temperature: 0.7,
       max_tokens: 2500,

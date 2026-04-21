@@ -11,7 +11,7 @@ IMPORTANT LANGUAGE RULE: Detect the language of the user's topic/context and res
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, context } = await req.json();
+    const { messages } = await req.json();
 
     // Make 3 parallel API calls
     const [forResponse, againstResponse, verdictResponse] = await Promise.all([
@@ -21,8 +21,9 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `${LANGUAGE_RULE}\n\nYou are a passionate senior developer arguing STRONGLY IN FAVOR of "${topic}". Give 4 powerful technical arguments with code examples where relevant. Be convincing and specific. Format with markdown.`,
+            content: `${LANGUAGE_RULE}\n\nYou are a passionate senior developer arguing STRONGLY IN FAVOR of the user's topic. Give 4 powerful technical arguments with code examples where relevant. Be convincing and specific. Format with markdown.`,
           },
+          ...messages,
         ],
         temperature: 0.8,
         max_tokens: 1024,
@@ -34,8 +35,9 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `${LANGUAGE_RULE}\n\nYou are a passionate senior developer arguing STRONGLY AGAINST "${topic}". Give 4 powerful technical arguments with code examples where relevant. Be convincing and specific. Format with markdown.`,
+            content: `${LANGUAGE_RULE}\n\nYou are a passionate senior developer arguing STRONGLY AGAINST the user's topic. Give 4 powerful technical arguments with code examples where relevant. Be convincing and specific. Format with markdown.`,
           },
+          ...messages,
         ],
         temperature: 0.8,
         max_tokens: 1024,
@@ -47,8 +49,9 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `${LANGUAGE_RULE}\n\nYou are a neutral tech lead. Given the user's context: "${context || 'No specific context provided'}", review both sides of "${topic}" and give a FINAL VERDICT with a clear recommendation and score (FOR: X/10, AGAINST: X/10). Be decisive and provide actionable advice. Format with markdown.`,
+            content: `${LANGUAGE_RULE}\n\nYou are a neutral tech lead. Review both sides of the user's topic based on their inputs and give a FINAL VERDICT with a clear recommendation and score (FOR: X/10, AGAINST: X/10). Be decisive and provide actionable advice. Format with markdown.`,
           },
+          ...messages,
         ],
         temperature: 0.7,
         max_tokens: 1024,
