@@ -63,6 +63,7 @@ export interface Message {
   pinned: boolean;
   codeLanguage?: string;
   aiReview?: string;
+  imageUrl?: string;
 }
 
 export interface Presence {

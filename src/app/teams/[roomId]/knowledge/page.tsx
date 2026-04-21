@@ -15,9 +15,10 @@ export default function KnowledgePage() {
       <header className="h-16 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex items-center px-4">
         <Link
           href={`/teams/${roomId}`}
-          className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] mr-4"
+          className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-2 rounded-lg hover:bg-[var(--bg-elevated)] mr-4"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft size={20} />
+          <span className="text-sm">Back</span>
         </Link>
         <div>
           <h1 className="font-semibold text-[var(--text-primary)]">Knowledge Base</h1>

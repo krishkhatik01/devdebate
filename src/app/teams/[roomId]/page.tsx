@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hash,
@@ -11,10 +11,15 @@ import {
   Phone,
   Video,
   PanelRight,
-  X
+  X,
+  ArrowLeft,
+  UserPlus,
+  Copy,
+  MessageCircle
 } from 'lucide-react';
-import { db, rtdb } from '@/lib/firebase';
+import { db, rtdb, storageApp } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   ref,
   onValue,
@@ -35,6 +40,7 @@ const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 export default function RoomPage() {
   const params = useParams();
   const roomId = params.roomId as string;
+  const router = useRouter();
 
   const [user, setUser] = useState<TeamUser | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
@@ -43,10 +49,31 @@ export default function RoomPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMembers, setShowMembers] = useState(true);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isAITyping, setIsAITyping] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Only image files are allowed');
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Initialize user
   useEffect(() => {
@@ -166,7 +193,24 @@ export default function RoomPage() {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !user || !roomId) return;
+    if ((!inputMessage.trim() && !selectedImage) || !user || !roomId) return;
+
+    let downloadURL: string | undefined = undefined;
+
+    if (selectedImage) {
+      setIsUploading(true);
+      try {
+        const imageRef = storageRef(storageApp, `teams/${roomId}/images/${Date.now()}_${selectedImage.name}`);
+        await uploadBytes(imageRef, selectedImage);
+        downloadURL = await getDownloadURL(imageRef);
+      } catch (error) {
+        console.error("Image upload failed", error);
+        toast.error("Failed to upload image");
+        setIsUploading(false);
+        return;
+      }
+      setIsUploading(false);
+    }
 
     const sanitizedText = sanitizeInput(inputMessage);
     const newMessage: Omit<Message, 'id'> = {
@@ -177,7 +221,8 @@ export default function RoomPage() {
       senderEmoji: user.emoji,
       timestamp: Date.now(),
       isAI: false,
-      type: 'text',
+      type: downloadURL ? 'image' : 'text',
+      imageUrl: downloadURL,
       replyTo: replyingTo ? {
         messageId: replyingTo.id,
         text: replyingTo.text,
@@ -193,6 +238,9 @@ export default function RoomPage() {
       const messagesRef = ref(rtdb, `rooms/${roomId}/messages`);
       await push(messagesRef, newMessage);
       setInputMessage('');
+      setSelectedImage(null);
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setReplyingTo(null);
       setShowEmojiPicker(false);
 
@@ -202,6 +250,62 @@ export default function RoomPage() {
       }
       const typingRef = ref(rtdb, `rooms/${roomId}/typing/${user.userId}`);
       remove(typingRef);
+
+      // Check for AI mention
+      const isAIMentioned = sanitizedText.toLowerCase().includes('@ai');
+      
+      if (isAIMentioned) {
+        setIsAITyping(true);
+        setTimeout(async () => {
+          try {
+            const aiContext = [
+              ...messages.slice(-9).map(m => ({
+                 role: m.senderId === AI_MEMBER.userId ? 'assistant' : 'user',
+                 content: `${m.senderName}: ${m.text}`
+              })),
+              { role: 'user', content: sanitizedText + (downloadURL ? " (User attached an image)" : "") }
+            ];
+
+            const response = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                messages: aiContext, 
+                systemPrompt: 'You are DevBot, an AI in a developer team chat room. Read the user conversation history and answer their recent query mentioning you. Keep your helpful answers concise.' 
+              })
+            });
+            
+            if (!response.ok) throw new Error('AI failed');
+            
+            const data = await response.json();
+            const aiResponse = data.content || "I couldn't process that.";
+
+            const aiMessage: Omit<Message, 'id'> = {
+              text: aiResponse,
+              senderId: AI_MEMBER.userId,
+              senderName: AI_MEMBER.name,
+              senderColor: AI_MEMBER.color,
+              senderEmoji: AI_MEMBER.emoji,
+              timestamp: Date.now(),
+              isAI: true,
+              type: 'text',
+              replyTo: null,
+              reactions: {},
+              edited: false,
+              editedAt: null,
+              pinned: false,
+            };
+            
+            await push(messagesRef, aiMessage);
+          } catch (e) {
+             console.error("AI Error", e);
+             toast.error('DevBot connection failed');
+          } finally {
+             setIsAITyping(false);
+          }
+        }, 500);
+      }
+
     } catch {
       toast.error('Failed to send message');
     }
@@ -249,6 +353,14 @@ export default function RoomPage() {
     <div className="h-screen bg-[var(--bg-primary)] flex flex-col">
       {/* Header */}
       <header className="h-16 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex items-center px-4">
+        <button
+          onClick={() => router.push('/teams')}
+          title="Back to Teams"
+          className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-2 rounded-lg hover:bg-[var(--bg-elevated)] mr-2"
+        >
+          <ArrowLeft size={20} />
+          <span className="text-sm">Back</span>
+        </button>
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 rounded-xl bg-[var(--accent-primary)]/10 flex items-center justify-center">
             <Hash className="w-5 h-5 text-[var(--accent-primary)]" />
@@ -260,11 +372,24 @@ export default function RoomPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]">
+          <button
+            onClick={() => toast('Voice call coming soon! 🎙️')}
+            className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+          >
             <Phone className="w-5 h-5" />
           </button>
-          <button className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]">
+          <button
+            onClick={() => toast('Video call coming soon! 📹')}
+            className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+          >
             <Video className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setIsInviteModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-500 hover:bg-teal-500/20 transition-colors text-sm font-medium"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden sm:inline">Invite</span>
           </button>
           <button
             onClick={() => setShowMembers(!showMembers)}
@@ -342,7 +467,17 @@ export default function RoomPage() {
                           : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border)] rounded-bl-md'
                         }`}
                     >
-                      <p className="text-sm">{message.text}</p>
+                      {message.type === 'image' && message.imageUrl && (
+                        <div className="mb-2">
+                          <img 
+                            src={message.imageUrl} 
+                            alt="Attached" 
+                            className="max-w-[250px] max-h-[250px] rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(message.imageUrl, '_blank')}
+                          />
+                        </div>
+                      )}
+                      {message.text && <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>}
                       {message.edited && (
                         <span className="text-[10px] opacity-60 ml-1">(edited)</span>
                       )}
@@ -371,11 +506,42 @@ export default function RoomPage() {
           </div>
 
           {/* Typing Indicator */}
-          {typingUsers.length > 0 && (
-            <div className="px-4 py-2 text-xs text-[var(--text-muted)]">
-              {typingUsers.length === 1
-                ? `${typingUsers[0]} is typing...`
-                : `${typingUsers.join(', ')} are typing...`}
+          {(typingUsers.length > 0 || isAITyping) && (
+            <div className="px-4 py-2 text-xs text-[var(--text-muted)] flex items-center gap-2">
+              {isAITyping && (
+                 <span className="text-purple-400 font-medium">DevBot is thinking...</span>
+              )}
+              {typingUsers.length > 0 && (
+                <span>
+                  {typingUsers.length === 1
+                    ? `${typingUsers[0]} is typing...`
+                    : `${typingUsers.join(', ')} are typing...`}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Image Preview */}
+          {imagePreview && (
+            <div className="px-4 py-3 bg-[var(--bg-elevated)] border-t border-[var(--border)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src={imagePreview} alt="Preview" className="w-12 h-12 rounded object-cover border border-[var(--border)]" />
+                <div className="text-sm">
+                  <p className="font-medium text-[var(--text-primary)] truncate max-w-[200px]">{selectedImage?.name}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{(selectedImage?.size ? (selectedImage.size / 1024).toFixed(1) : 0)} KB</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedImage(null);
+                  setImagePreview(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="p-1.5 rounded-lg hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-white transition-colors"
+                title="Remove image"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -398,7 +564,18 @@ export default function RoomPage() {
           {/* Input Area */}
           <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
             <div className="flex items-end gap-2">
-              <button className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] transition-colors"
+                title="Attach Image"
+              >
                 <Paperclip className="w-5 h-5" />
               </button>
 
@@ -434,10 +611,14 @@ export default function RoomPage() {
 
               <button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim()}
+                disabled={(!inputMessage.trim() && !selectedImage) || isUploading}
                 className="p-2.5 rounded-xl bg-[var(--accent-primary)] text-[#0a0a0b] hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <Send className="w-5 h-5" />
+                {isUploading ? (
+                  <div className="w-5 h-5 border-2 border-[#0a0a0b] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
@@ -518,6 +699,93 @@ export default function RoomPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Invite Modal */}
+      <AnimatePresence>
+        {isInviteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+                <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-teal-500" />
+                  Invite to {room.name}
+                </h3>
+                <button
+                  onClick={() => setIsInviteModalOpen(false)}
+                  className="p-1 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-2 uppercase tracking-wider">
+                    Room ID
+                  </label>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+                    <Hash className="w-5 h-5 text-[var(--text-muted)]" />
+                    <span className="flex-1 font-mono tracking-widest text-[var(--text-primary)]">
+                      {roomId}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(roomId);
+                        toast.success('Room ID copied! ✅');
+                      }}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] transition-colors"
+                      title="Copy ID"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-2 uppercase tracking-wider">
+                    Invite Link
+                  </label>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+                    <span className="flex-1 text-sm text-[var(--text-muted)] truncate">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/teams/${roomId}` : ''}
+                    </span>
+                    <button
+                      onClick={() => {
+                        const link = `${window.location.origin}/teams/${roomId}`;
+                        navigator.clipboard.writeText(link);
+                        toast.success('Link copied! ✅');
+                      }}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] transition-colors"
+                      title="Copy Link"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      const link = `${window.location.origin}/teams/${roomId}`;
+                      const text = `Join my DevDebate room: ${link}`;
+                      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                    }}
+                    className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-[#25D366] text-white hover:bg-[#20bd5a] transition-colors font-medium"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Share on WhatsApp
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
