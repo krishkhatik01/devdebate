@@ -331,13 +331,6 @@ export default function RoomPage() {
     setShowEmojiPicker(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
   const onlineMembers = members.filter(m => m.online);
   const offlineMembers = members.filter(m => !m.online);
 
@@ -586,7 +579,6 @@ export default function RoomPage() {
                     setInputMessage(e.target.value);
                     handleTyping();
                   }}
-                  onKeyDown={handleKeyDown}
                   placeholder="Type a message... Use @AI for AI assistance"
                   rows={1}
                   className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] resize-none min-h-[44px] max-h-[120px]"
